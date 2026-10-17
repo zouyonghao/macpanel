@@ -60,7 +60,7 @@ Listening on `:9000` binds both IPv4 and IPv6 — if the host has a public IPv6 
 ~/.acme.sh/acme.sh --issue --dns dns_cf -d panel.example.com   # reuses the existing CF token
 ```
 
-Optional: an **IP allowlist** (one entry per line in Settings, `192.168.31.` prefix notation supported).
+Optional: an **IP allowlist** (one entry per line in Settings, `192.168.1.` prefix notation supported).
 
 ### ⚠️ Terminal page risk
 

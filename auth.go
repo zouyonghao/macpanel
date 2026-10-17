@@ -379,7 +379,7 @@ func ipAllowed(ip string, allowlist []string) bool {
 		if a == ip || a == ip+"/32" {
 			return true
 		}
-		// Simple prefix match, e.g. "192.168.31." or "172.22."
+		// Simple prefix match, e.g. "192.168.1." or "172.22."
 		if strings.HasSuffix(a, ".") && strings.HasPrefix(ip, a) {
 			return true
 		}

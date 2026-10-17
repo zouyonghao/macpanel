@@ -60,7 +60,7 @@ agent(`com.macpanel`)登录自启、进程保活;日志在 `<checkout>/data/pane
 ~/.acme.sh/acme.sh --issue --dns dns_cf -d panel.example.com   # 复用现有 CF token
 ```
 
-可选:**IP 白名单**(设置里每行一条,支持 `192.168.31.` 前缀写法)。
+可选:**IP 白名单**(设置里每行一条,支持 `192.168.1.` 前缀写法)。
 
 ### ⚠️ 终端页风险
 

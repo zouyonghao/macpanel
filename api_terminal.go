@@ -18,7 +18,7 @@ var wsUpgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true }, // same-origin is guaranteed by the session cookie
 }
 
-// GET /api/terminal?cmd=<optional, e.g. "ssh root@192.168.31.1"> — WS ↔ PTY
+// GET /api/terminal?cmd=<optional, e.g. "docker ps"> — WS ↔ PTY
 func (app *App) handleTerminal(w http.ResponseWriter, r *http.Request, s *Session) {
 	if app.store.Cfg.TLSCert == "" && r.Host != "" {
 		// HTTP is allowed, but audited

@@ -775,14 +775,10 @@ function disconnectTerm() {
 async function pageTerminal() {
   mainEl().innerHTML = `
     <header class="top"><h2>${t('Terminal')}</h2><div class="right">
-      <select id="term-preset">
+      <select id="term-preset" style="display:none">
         <option value="">${t('— Quick commands —')}</option>
-        <option value="ssh root@192.168.31.1">${t('SSH to OpenWrt router')}</option>
-        <option value="crontab -l">${t('View crontab')}</option>
-        <option value="container ls --all">${t('List containers')}</option>
-        <option value="brew services list">${t('brew services')}</option>
-        <option value="launchctl list | head -30">${t('launchd list')}</option>
       </select>
+      <button class="ghost small" data-act="term-cmds-manage">${t('Manage quick commands')}</button>
       <button class="ghost small" data-act="term-reconnect">${t('Reconnect')}</button>
     </div></header>
     <div class="termbox" id="termbox"></div>`;
@@ -793,6 +789,7 @@ async function pageTerminal() {
     if (termWS && termWS.readyState === 1) { termWS.send(cmd); termWS.send('\r'); }
     else toast(t('Terminal not connected'), 'err');
   });
+  loadTermCmds();
   try {
     await loadScript('/assets/xterm.min.js');
   } catch (e) {
@@ -800,6 +797,60 @@ async function pageTerminal() {
     return;
   }
   connectTerm();
+}
+/* ---- Terminal quick commands (user-defined, stored in config) ---- */
+async function loadTermCmds() {
+  const sel = document.getElementById('term-preset');
+  if (!sel) return;
+  try {
+    const d = await api('/api/termcmds');
+    const list = d.commands || [];
+    sel.innerHTML = `<option value="">${t('— Quick commands —')}</option>` +
+      list.map(c => `<option value="${esc(c.cmd)}" title="${esc(c.cmd)}">${esc(c.name)}</option>`).join('');
+    sel.style.display = list.length ? '' : 'none';
+  } catch (e) { /* the terminal still works without quick commands */ }
+}
+async function openTermCmdsModal() {
+  openModal(t('Manage quick commands'), '<div class="muted">' + t('Loading…') + '</div>');
+  await renderTermCmdsModal();
+}
+async function renderTermCmdsModal() {
+  const box = document.getElementById('modal-content');
+  if (!box || document.getElementById('modal').classList.contains('hidden')) return;
+  try {
+    const d = await api('/api/termcmds');
+    const list = d.commands || [];
+    box.innerHTML = `
+      <div class="panel"><h4 id="termcmd-form-title">${t('Add command')}</h4>
+        <form data-form="termcmd-add">
+          <input type="hidden" name="id" value="">
+          <div class="form-row">
+            <div><label>${t('Name')}</label><input name="name" required placeholder="${t('e.g. SSH router')}"></div>
+            <div style="flex:2"><label>${t('Command')}</label><input name="cmd" required placeholder="container ls --all"></div>
+            <div style="flex:0;align-self:end"><button type="submit" id="termcmd-submit">${t('Add')}</button></div>
+          </div>
+        </form></div>
+      ${list.length ? `<div class="tbl-wrap"><table>
+        <tr><th>${t('Name')}</th><th>${t('Command')}</th><th>${t('Actions')}</th></tr>
+        ${list.map(c => `<tr>
+          <td><b>${esc(c.name)}</b></td>
+          <td><code>${esc(c.cmd)}</code></td>
+          <td class="actions">
+            <button class="small ghost" data-act="termcmd-up" data-arg="${c.id}" title="${t('Move up')}">↑</button>
+            <button class="small ghost" data-act="termcmd-down" data-arg="${c.id}" title="${t('Move down')}">↓</button>
+            <button class="small ghost" data-act="termcmd-edit" data-arg="${c.id}">${t('Edit')}</button>
+            <button class="small danger" data-act="termcmd-del" data-arg="${c.id}" data-name="${esc(c.name)}">${t('Delete')}</button>
+          </td></tr>`).join('')}
+      </table></div>` : `<div class="muted" style="padding:10px">${t('No quick commands yet; add your first one above')}</div>`}`;
+  } catch (e) { box.innerHTML = `<div class="muted">${esc(ts(e.message))}</div>`; }
+}
+function resetTermCmdForm() {
+  const f = document.querySelector('form[data-form=termcmd-add]');
+  if (!f) return;
+  f.reset();
+  f.querySelector('input[name=id]').value = '';
+  document.getElementById('termcmd-form-title').textContent = t('Add command');
+  document.getElementById('termcmd-submit').textContent = t('Add');
 }
 function connectTerm() {
   const box = document.getElementById('termbox');
@@ -937,7 +988,7 @@ function pageSettings() {
         <div><label>${t('TLS private key path')}</label><input name="tls_key" id="sec-key"></div>
         <div><label>${t('HTTP redirect port (optional)')}</label><input name="http_port" id="sec-httpport" placeholder=":8000"></div>
       </div>
-      <div style="margin-top:8px"><label>${t('IP allowlist (one per line, prefixes like 192.168.31. allowed; empty = no restriction)')}</label>
+      <div style="margin-top:8px"><label>${t('IP allowlist (one per line, prefixes like 192.168.1. allowed; empty = no restriction)')}</label>
         <textarea name="ip_allowlist" id="sec-allow" rows="3" style="font-family:ui-monospace,monospace"></textarea></div>
       <div style="margin-top:10px"><button type="submit">${t('Save security settings')}</button></div>
       </form></div>
@@ -1005,6 +1056,26 @@ function wireEvents() {
         case 'link-del':
           if (!confirmGo(t('Delete link "') + name + '"?')) return;
           await api('/api/links/delete', 'POST', { id: arg }); loadLinks(); break;
+        /* Terminal quick commands */
+        case 'term-cmds-manage': openTermCmdsModal(); break;
+        case 'termcmd-up': await api('/api/termcmds/move', 'POST', { id: arg, dir: 'up' }); renderTermCmdsModal(); loadTermCmds(); break;
+        case 'termcmd-down': await api('/api/termcmds/move', 'POST', { id: arg, dir: 'down' }); renderTermCmdsModal(); loadTermCmds(); break;
+        case 'termcmd-edit': {
+          const d = await api('/api/termcmds');
+          const c = (d.commands || []).find(x => x.id === arg);
+          if (!c) break;
+          const f = document.querySelector('form[data-form=termcmd-add]');
+          if (!f) break;
+          f.querySelector('input[name=id]').value = c.id;
+          f.querySelector('input[name=name]').value = c.name;
+          f.querySelector('input[name=cmd]').value = c.cmd;
+          document.getElementById('termcmd-form-title').textContent = t('Edit command ') + c.name;
+          document.getElementById('termcmd-submit').textContent = t('Save changes');
+          break;
+        }
+        case 'termcmd-del':
+          if (!confirmGo(t('Delete command "') + name + '"?')) return;
+          await api('/api/termcmds/delete', 'POST', { id: arg }); renderTermCmdsModal(); loadTermCmds(); break;
         /* Services */
         case 'svc-refresh': loadBrewServices(); loadLaunchd(); break;
         case 'brewsvc': {
@@ -1168,6 +1239,13 @@ function wireEvents() {
           toast(t('Link saved'), 'ok');
           resetLinkForm();
           loadLinks();
+          break;
+        case 'termcmd-add':
+          await api('/api/termcmds/save', 'POST', { id: val('id'), name: val('name'), cmd: val('cmd') });
+          toast(t('Command saved'), 'ok');
+          resetTermCmdForm();
+          renderTermCmdsModal();
+          loadTermCmds();
           break;
         case 'cron-add': {
           const idx = parseInt(val('index'), 10);
