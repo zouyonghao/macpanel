@@ -65,7 +65,7 @@ func (app *App) handleSiteList(w http.ResponseWriter, r *http.Request, s *Sessio
 	}
 	installed := fileExists("/opt/homebrew/bin/caddy")
 	running := false
-	if out, code := runCmd(10*time.Second, "brew", "services", "list"); code == 0 {
+	if out, code := app.brewServicesList(); code == 0 {
 		for _, line := range strings.Split(out, "\n") {
 			f := strings.Fields(line)
 			if len(f) >= 2 && f[0] == "caddy" {
@@ -209,6 +209,7 @@ func (app *App) handleCaddyAction(w http.ResponseWriter, r *http.Request, s *Ses
 	case "start", "stop", "restart":
 		out, code := runCmd(120*time.Second, brewBin(), "services", req.Action, "caddy")
 		app.audit("caddy_"+req.Action, "")
+		app.invalidateBrewList()
 		if code != 0 {
 			apiErr(w, 500, strings.TrimSpace(out))
 			return

@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -23,6 +24,13 @@ type App struct {
 	limiter  *RateLimiter
 	sampler  *Sampler
 	jobs     *JobManager
+
+	// brew services list spawns the ruby-based brew binary (~0.5–2s), so its
+	// output is cached briefly; invalidated on any action that changes state
+	brewMu   sync.Mutex
+	brewOut  string
+	brewCode int
+	brewAt   time.Time
 }
 
 func main() {

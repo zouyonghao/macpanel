@@ -5,9 +5,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"net/http"
@@ -26,7 +26,30 @@ type LaunchdService struct {
 	Disabled  bool   `json:"disabled"`
 }
 
+// parsePlist converts a plist to JSON via plutil, cached by path+mtime: each
+// miss spawns a plutil process (~0.2s for a full scan of 36 plists), while
+// plist contents change rarely. Callers only read the returned map.
+var (
+	plistMu    sync.Mutex
+	plistCache = map[string]plistEntry{}
+)
+
+type plistEntry struct {
+	modTime time.Time
+	data    map[string]any
+}
+
 func parsePlist(path string) map[string]any {
+	st, err := os.Stat(path)
+	if err != nil {
+		return nil
+	}
+	plistMu.Lock()
+	if e, ok := plistCache[path]; ok && e.modTime.Equal(st.ModTime()) {
+		plistMu.Unlock()
+		return e.data
+	}
+	plistMu.Unlock()
 	out, err := exec.Command("plutil", "-convert", "json", "-o", "-", path).Output()
 	if err != nil {
 		return nil
@@ -35,6 +58,9 @@ func parsePlist(path string) map[string]any {
 	if json.Unmarshal(out, &m) != nil {
 		return nil
 	}
+	plistMu.Lock()
+	plistCache[path] = plistEntry{modTime: st.ModTime(), data: m}
+	plistMu.Unlock()
 	return m
 }
 
@@ -178,7 +204,7 @@ func (app *App) handleLaunchdAction(w http.ResponseWriter, r *http.Request, s *S
 	apiOK(w, map[string]any{"output": strings.TrimSpace(out)})
 }
 
-// launchdCached rescans quickly (no cache, queries live; the volume is small so it's fine)
+// launchdCached rescans live state; plist parsing is cached by parsePlist
 func (app *App) launchdCached() []LaunchdService {
 	state := launchdState()
 	services := []LaunchdService{}
@@ -220,7 +246,30 @@ func (app *App) launchdCached() []LaunchdService {
 
 // ---------- brew services ----------
 
-var brewServicesRe = regexp.MustCompile(`^(.+?)\s{2,}(started|stopped|error|unknown|scheduled)\s+(.*)$`)
+const brewListTTL = 30 * time.Second
+
+// brewServicesList runs `brew services list` with a short-TTL cache: the brew
+// binary is a ruby startup costing ~0.5–2s, and both the Services page (polled
+// every 10s) and the Sites page (caddy status) would otherwise pay it each time
+func (app *App) brewServicesList() (string, int) {
+	app.brewMu.Lock()
+	defer app.brewMu.Unlock()
+	if time.Since(app.brewAt) < brewListTTL {
+		return app.brewOut, app.brewCode
+	}
+	out, code := runCmd(60*time.Second, brewBin(), "services", "list")
+	if code == 0 { // only cache successes; a transient failure shouldn't stick
+		app.brewOut, app.brewCode, app.brewAt = out, code, time.Now()
+	}
+	return out, code
+}
+
+// invalidateBrewList drops the cached brew services output so the next read is live
+func (app *App) invalidateBrewList() {
+	app.brewMu.Lock()
+	app.brewAt = time.Time{}
+	app.brewMu.Unlock()
+}
 
 type BrewService struct {
 	Name    string `json:"name"`
@@ -232,7 +281,7 @@ type BrewService struct {
 
 // GET /api/services/brew
 func (app *App) handleBrewServices(w http.ResponseWriter, r *http.Request, s *Session) {
-	out, code := runCmd(60*time.Second, brewBin(), "services", "list")
+	out, code := app.brewServicesList()
 	if code != 0 {
 		apiErr(w, 500, "brew services failed: "+out)
 		return
@@ -282,6 +331,7 @@ func (app *App) handleBrewServiceAction(w http.ResponseWriter, r *http.Request, 
 	}
 	out, code := runCmd(120*time.Second, brewBin(), "services", req.Action, req.Name)
 	app.audit("brew_service_"+req.Action, req.Name)
+	app.invalidateBrewList()
 	if code != 0 {
 		apiErr(w, 500, strings.TrimSpace(out))
 		return
