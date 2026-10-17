@@ -162,6 +162,26 @@ func (app *App) handleContainerLogs(w http.ResponseWriter, r *http.Request, s *S
 	apiOK(w, map[string]any{"logs": lines})
 }
 
+// fields of `container image ls --format json` (only what we need; the raw
+// output embeds the full image config and layer history)
+type imageVariant struct {
+	Platform struct {
+		Architecture string `json:"architecture"`
+		OS           string `json:"os"`
+		Variant      string `json:"variant"`
+	} `json:"platform"`
+	Size int64 `json:"size"`
+}
+
+type imageRow struct {
+	Configuration struct {
+		Name         string `json:"name"`
+		CreationDate string `json:"creationDate"`
+	} `json:"configuration"`
+	ID       string         `json:"id"`
+	Variants []imageVariant `json:"variants"`
+}
+
 // GET /api/container/images
 func (app *App) handleContainerImages(w http.ResponseWriter, r *http.Request, s *Session) {
 	// container CLI 1.5.0 renamed `images ls` to `image ls`; try new first
@@ -173,9 +193,27 @@ func (app *App) handleContainerImages(w http.ResponseWriter, r *http.Request, s 
 		apiErr(w, 500, strings.TrimSpace(out))
 		return
 	}
-	var imgs []map[string]any
-	if json.Unmarshal([]byte(out), &imgs) != nil {
-		imgs = []map[string]any{}
+	var rows []imageRow
+	if err := json.Unmarshal([]byte(out), &rows); err != nil {
+		apiErr(w, 500, "Failed to parse image output: "+err.Error())
+		return
+	}
+	imgs := make([]map[string]any, 0, len(rows))
+	for _, row := range rows {
+		v := map[string]any{
+			"name":    row.Configuration.Name,
+			"id":      row.ID,
+			"created": row.Configuration.CreationDate,
+		}
+		if len(row.Variants) > 0 {
+			v["size"] = row.Variants[0].Size
+			arch := row.Variants[0].Platform.Architecture + "/" + row.Variants[0].Platform.OS
+			if vr := row.Variants[0].Platform.Variant; vr != "" {
+				arch += "/" + vr
+			}
+			v["arch"] = arch
+		}
+		imgs = append(imgs, v)
 	}
 	apiOK(w, map[string]any{"images": imgs})
 }

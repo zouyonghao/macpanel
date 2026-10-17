@@ -651,7 +651,14 @@ async function loadImages() {
     const d = await api('/api/container/images');
     const imgs = d.images || [];
     box.innerHTML = imgs.length
-      ? imgs.map(i => `<span class="badge">${esc(i.reference || JSON.stringify(i))}</span>`).join(' ')
+      ? `<table><tr><th>${t('Image')}</th><th>ID</th><th>${t('Arch')}</th><th>${t('Size')}</th><th>${t('Created')}</th></tr>` +
+        imgs.map(i => `<tr>
+          <td><code>${esc(i.name || '-')}</code></td>
+          <td class="muted" title="${esc(i.id || '')}">${esc((i.id || '').slice(0, 12))}</td>
+          <td>${esc(i.arch || '-')}</td>
+          <td>${i.size != null ? fmtBytes(i.size) : '-'}</td>
+          <td class="muted">${(i.created || '').slice(0, 10) || '-'}</td>
+        </tr>`).join('') + `</table>`
       : t('No images');
   } catch (e) { box.textContent = t('Failed to fetch image list: ') + ts(e.message); }
 }
