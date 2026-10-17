@@ -164,7 +164,11 @@ func (app *App) handleContainerLogs(w http.ResponseWriter, r *http.Request, s *S
 
 // GET /api/container/images
 func (app *App) handleContainerImages(w http.ResponseWriter, r *http.Request, s *Session) {
-	out, code := runCmd(30*time.Second, containerBinPath(), "images", "ls", "--format", "json")
+	// container CLI 1.5.0 renamed `images ls` to `image ls`; try new first
+	out, code := runCmd(30*time.Second, containerBinPath(), "image", "ls", "--format", "json")
+	if code != 0 {
+		out, code = runCmd(30*time.Second, containerBinPath(), "images", "ls", "--format", "json")
+	}
 	if code != 0 {
 		apiErr(w, 500, strings.TrimSpace(out))
 		return

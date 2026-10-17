@@ -1080,11 +1080,11 @@ function wireEvents() {
           const d = await api('/api/container/action', 'POST', { id: name, action: arg });
           toast((d.output || t('Done')).split('\n')[0], 'ok'); setTimeout(loadContainers, 800); break;
         }
-        case 'ct-logs': watchLogs(name); break;
+        case 'ct-logs': watchLogs(arg); break;
         case 'ct-logs-refresh': refreshLogs(); break;
         case 'ct-del':
-          if (!confirmGo(t('Force delete container "') + name + t('"? Data volumes must be cleaned up manually.'))) return;
-          await api('/api/container/action', 'POST', { id: name, action: 'delete' }, { 'X-Panel-Confirm': 'yes' });
+          if (!confirmGo(t('Force delete container "') + arg + t('"? Data volumes must be cleaned up manually.'))) return;
+          await api('/api/container/action', 'POST', { id: arg, action: 'delete' }, { 'X-Panel-Confirm': 'yes' });
           toast(t('Deleted'), 'ok'); setTimeout(loadContainers, 800); break;
         /* app store */
         case 'apps-refresh': loadApps(); loadBrewInstalled(); break;
