@@ -536,7 +536,7 @@ function pageSites() {
     <div class="panel"><h4 id="site-form-title">${t('Add site')}</h4>
       <form data-form="site-add">
         <div class="form-row">
-          <div><label>${t('Domain')}</label><input name="domain" required placeholder="${t('app.yonghao.org or *:8443')}"></div>
+          <div><label>${t('Domain')}</label><input name="domain" required placeholder="${t('app.example.com or *:8443')}"></div>
           <div><label>${t('Type')}</label>
             <select name="type" id="site-type">
               <option value="proxy">${t('Reverse proxy')}</option>

@@ -140,7 +140,7 @@ window.I18N.dict = {
   'Sites': '网站管理',
   'Install Caddy': '安装 Caddy',
   'Add site': '添加站点',
-  'app.yonghao.org or *:8443': 'app.yonghao.org 或 *:8443',
+  'app.example.com or *:8443': 'app.example.com 或 *:8443',
   'Reverse proxy': '反向代理',
   'Static site': '静态站点',
   'Target (127.0.0.1:port)': '目标 (127.0.0.1:端口)',
