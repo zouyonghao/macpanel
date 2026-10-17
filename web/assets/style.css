@@ -144,3 +144,13 @@ pre.log {
 .muted { color: var(--muted); font-size: 12px; }
 .hr { border: 0; border-top: 1px solid var(--border); margin: 14px 0; }
 .flex { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+/* quick links */
+.link-main { display: flex; gap: 10px; align-items: center; min-width: 0; color: var(--text); text-decoration: none; }
+.link-main:hover .link-body b { color: var(--accent2); }
+.link-body { display: flex; flex-direction: column; min-width: 0; }
+.link-icon { flex: none; font-size: 20px; line-height: 1.2; }
+.link-url { color: var(--muted); font-size: 11px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.card.link-card .actions { display: flex; gap: 6px; flex-wrap: wrap; }
+.card.dash-link { display: flex; gap: 10px; align-items: center; min-width: 0; color: var(--text); text-decoration: none; }
+.card.dash-link:hover { border-color: var(--accent); }

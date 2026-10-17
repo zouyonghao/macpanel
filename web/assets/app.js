@@ -110,7 +110,7 @@ function enterPanel() {
 
 /* =============== Routing =============== */
 const routes = {
-  dashboard: pageDashboard, services: pageServices, monitors: pageMonitors,
+  dashboard: pageDashboard, links: pageLinks, services: pageServices, monitors: pageMonitors,
   cron: pageCron, ports: pagePorts, sites: pageSites, containers: pageContainers,
   apps: pageApps, terminal: pageTerminal, ai: pageAI, settings: pageSettings,
 };
@@ -175,6 +175,7 @@ function pageDashboard() {
   mainEl().innerHTML = `
     <header class="top"><h2>${t('Dashboard')}</h2><div class="right muted" id="dash-host"></div></header>
     <div class="cards" id="dash-cards"></div>
+    <div class="panel" id="dash-links-panel" style="display:none;margin-top:14px"><h4>${t('Quick Links')}</h4><div class="cards" id="dash-links"></div></div>
     <div class="grid2" style="margin-top:14px">
       <div class="chartbox"><h4 id="t-cpu">CPU</h4><canvas class="chart" id="ch-cpu"></canvas></div>
       <div class="chartbox"><h4 id="t-mem">${t('Memory')}</h4><canvas class="chart" id="ch-mem"></canvas></div>
@@ -187,6 +188,23 @@ function pageDashboard() {
     </div>`;
   every(3000, refreshStatus);
   every(5000, refreshHistory);
+  loadDashLinks();
+}
+async function loadDashLinks() {
+  const panel = document.getElementById('dash-links-panel');
+  const box = document.getElementById('dash-links');
+  if (!panel || !box) return;
+  try {
+    const d = await api('/api/links');
+    const links = d.links || [];
+    if (!links.length) return;
+    panel.style.display = '';
+    box.innerHTML = links.map(l => `
+      <a class="card dash-link" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.url)}">
+        <span class="link-icon">${esc(l.icon || '🔗')}</span>
+        <span class="link-body"><b>${esc(l.name)}</b>${l.group ? `<span class="link-url">${esc(l.group)}</span>` : ''}</span>
+      </a>`).join('');
+  } catch (e) { /* ignore */ }
 }
 async function refreshStatus() {
   try {
@@ -239,6 +257,68 @@ async function refreshHistory() {
     drawChart(document.getElementById('ch-io'), [
       { data: h.disk_r, color: '#4f8cff' }, { data: h.disk_w, color: '#f05a5a' }], { fmt: fmtBps });
   } catch (e) { /* ignore */ }
+}
+
+/* =============== Quick Links (navigation) =============== */
+function linkCardHTML(l, withActions) {
+  return `
+    <div class="card link-card">
+      <a class="link-main" href="${esc(l.url)}" target="_blank" rel="noopener" title="${esc(l.url)}">
+        <span class="link-icon">${esc(l.icon || '🔗')}</span>
+        <span class="link-body"><b>${esc(l.name)}</b><span class="link-url">${esc(l.url)}</span></span>
+      </a>
+      ${withActions ? `<div class="actions">
+        <button class="small ghost" data-act="link-up" data-arg="${l.id}" title="${t('Move up')}">↑</button>
+        <button class="small ghost" data-act="link-down" data-arg="${l.id}" title="${t('Move down')}">↓</button>
+        <button class="small ghost" data-act="link-edit" data-id="${l.id}" data-icon="${esc(l.icon || '')}"
+          data-name="${esc(l.name)}" data-url="${esc(l.url)}" data-group="${esc(l.group || '')}">${t('Edit')}</button>
+        <button class="small danger" data-act="link-del" data-arg="${l.id}" data-name="${esc(l.name)}">${t('Delete')}</button>
+      </div>` : ''}
+    </div>`;
+}
+function pageLinks() {
+  mainEl().innerHTML = `
+    <header class="top"><h2>${t('Quick Links')}</h2><div class="right">
+      <button class="ghost small" data-act="links-refresh">${t('Refresh')}</button></div></header>
+    <div class="panel"><h4 id="link-form-title">${t('Add link')}</h4>
+      <form data-form="link-add">
+        <input type="hidden" name="id" value="">
+        <div class="form-row">
+          <div style="flex:0;min-width:90px"><label>${t('Icon')}</label><input name="icon" maxlength="8" placeholder="🔗"></div>
+          <div><label>${t('Name')}</label><input name="name" required placeholder="${t('e.g. Nextcloud')}"></div>
+          <div style="flex:2"><label>URL</label><input name="url" type="url" required placeholder="https://cloud.example.com"></div>
+          <div><label>${t('Group (optional)')}</label><input name="group" list="link-groups" placeholder="${t('e.g. WebDAV')}"><datalist id="link-groups"></datalist></div>
+          <div style="flex:0;align-self:end"><button type="submit" id="link-submit">${t('Add')}</button></div>
+        </div>
+      </form></div>
+    <div id="links-list"><div class="muted">${t('Loading…')}</div></div>`;
+  loadLinks();
+}
+async function loadLinks() {
+  const box = document.getElementById('links-list');
+  if (!box) return;
+  try {
+    const d = await api('/api/links');
+    const list = d.links || [];
+    const groups = {};
+    list.forEach(l => { (groups[l.group || ''] = groups[l.group || ''] || []).push(l); });
+    const names = Object.keys(groups).sort((a, b) => (a === '' ? -1 : b === '' ? 1 : a.localeCompare(b)));
+    box.innerHTML = names.length ? names.map(g => `
+      <div class="panel"><h4>${g ? esc(g) : t('General')}</h4><div class="cards">
+        ${groups[g].map(l => linkCardHTML(l, true)).join('')}
+      </div></div>`).join('')
+      : '<div class="tbl-wrap"><div class="muted" style="padding:14px">' + t('No links yet; add your first entry above') + '</div></div>';
+    const dl = document.getElementById('link-groups');
+    if (dl) dl.innerHTML = names.filter(Boolean).map(g => `<option value="${esc(g)}">`).join('');
+  } catch (e) { box.innerHTML = `<div class="muted">${esc(ts(e.message))}</div>`; }
+}
+function resetLinkForm() {
+  const f = document.querySelector('form[data-form=link-add]');
+  if (!f) return;
+  f.reset();
+  f.querySelector('input[name=id]').value = '';
+  document.getElementById('link-form-title').textContent = t('Add link');
+  document.getElementById('link-submit').textContent = t('Add');
 }
 
 /* =============== Services =============== */
@@ -899,6 +979,25 @@ function wireEvents() {
         case 'close-modal': closeModal(); break;
         case 'toggle-lang': I18N.set(I18N.lang === 'zh' ? 'en' : 'zh'); break;
         case 'logout': await api('/api/logout', 'POST', {}); location.hash = ''; location.reload(); break;
+        /* quick links */
+        case 'links-refresh': loadLinks(); break;
+        case 'link-up': await api('/api/links/move', 'POST', { id: arg, dir: 'up' }); loadLinks(); break;
+        case 'link-down': await api('/api/links/move', 'POST', { id: arg, dir: 'down' }); loadLinks(); break;
+        case 'link-edit': {
+          const f = document.querySelector('form[data-form=link-add]');
+          f.querySelector('input[name=id]').value = el.dataset.id;
+          f.querySelector('input[name=icon]').value = el.dataset.icon;
+          f.querySelector('input[name=name]').value = el.dataset.name;
+          f.querySelector('input[name=url]').value = el.dataset.url;
+          f.querySelector('input[name=group]').value = el.dataset.group;
+          document.getElementById('link-form-title').textContent = t('Edit link ') + el.dataset.name;
+          document.getElementById('link-submit').textContent = t('Save changes');
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+          break;
+        }
+        case 'link-del':
+          if (!confirmGo(t('Delete link "') + name + '"?')) return;
+          await api('/api/links/delete', 'POST', { id: arg }); loadLinks(); break;
         /* Services */
         case 'svc-refresh': loadBrewServices(); loadLaunchd(); break;
         case 'brewsvc': {
@@ -1054,6 +1153,14 @@ function wireEvents() {
             name: val('name'), type: val('type'), target: val('target'), enabled: true,
           });
           toast(t('Added'), 'ok'); f.reset(); loadMonitors();
+          break;
+        case 'link-add':
+          await api('/api/links/save', 'POST', {
+            id: val('id'), icon: val('icon'), name: val('name'), url: val('url'), group: val('group'),
+          });
+          toast(t('Link saved'), 'ok');
+          resetLinkForm();
+          loadLinks();
           break;
         case 'cron-add': {
           const idx = parseInt(val('index'), 10);

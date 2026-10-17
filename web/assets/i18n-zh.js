@@ -263,6 +263,24 @@ window.I18N.dict = {
   'Audit log (last ': '审计日志 (最近 ',
   ' entries)': ' 条)',
 
+  /* ---- quick links ---- */
+  '🔗 Quick Links': '🔗 快速入口',
+  'Quick Links': '快速入口',
+  'Add link': '添加入口',
+  'Icon': '图标',
+  'Group (optional)': '分组 (可选)',
+  'e.g. WebDAV': '如 WebDAV',
+  'General': '常用',
+  'No links yet; add your first entry above': '还没有入口,在上方添加第一个吧',
+  'Move up': '上移',
+  'Move down': '下移',
+  'Edit link ': '编辑入口 ',
+  'Delete link "': '删除入口 "',
+  'Link saved': '入口已保存',
+  'Name and URL are required': '名称和 URL 不能为空',
+  'URL must be a valid http(s) address': 'URL 必须是合法的 http(s) 地址',
+  'Field too long': '字段过长',
+
   /* ---- actions / toasts ---- */
   'Done': '完成',
   ' OK (': ' 正常 (',

@@ -43,6 +43,15 @@ type KnownService struct {
 	Port int    `json:"port"`
 }
 
+// QuickLink is a bookmark on the Quick Links (navigation) page
+type QuickLink struct {
+	ID    string `json:"id"`
+	Name  string `json:"name"`
+	URL   string `json:"url"`
+	Icon  string `json:"icon"`  // short emoji/text badge
+	Group string `json:"group"` // optional section name
+}
+
 type AISettings struct {
 	BaseURL string `json:"base_url"`
 	Key     string `json:"key"`
@@ -62,6 +71,7 @@ type Config struct {
 	Sites         []Site         `json:"sites"`
 	FavoritePorts []int          `json:"favorite_ports"`
 	KnownServices []KnownService `json:"known_services"`
+	QuickLinks    []QuickLink    `json:"quick_links"`
 	AI            AISettings     `json:"ai"`
 }
 

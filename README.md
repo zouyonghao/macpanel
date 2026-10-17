@@ -13,6 +13,7 @@ An in-house-built macOS server panel. A single Go binary (~13 MB, ~20–30 MB re
 | Module | Description |
 |---|---|
 | Dashboard | Real-time CPU / memory / network / disk I/O charts (5s sampling, 75 minutes of history), top processes, mounted disks |
+| Quick Links | Built-in navigation page: bookmark internal services (LAN / ZeroTier / tunnel addresses), freely add/edit/reorder/delete, grouped sections; also shown on the dashboard |
 | Services | launchd (LaunchAgents/LaunchDaemons read-only, user domain manageable) and `brew services` start/stop |
 | Monitors | Custom checks (launchd / port / HTTP / process name), auto-checked every 60s, with one-click restart of the linked service |
 | Cron jobs | Visual add/edit/delete and enable/disable of crontab entries; automatic backup to `data/cron-backup/` before every write-back (last 20 kept) |

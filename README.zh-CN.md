@@ -13,6 +13,7 @@
 | 模块 | 说明 |
 |---|---|
 | 仪表盘 | CPU / 内存 / 网络 / 磁盘 I/O 实时曲线(5s 采样,75 分钟历史)、Top 进程、磁盘挂载 |
+| 快速入口 | 内置导航页:收藏内网服务(LAN / ZeroTier / 隧道地址),自由增改、分组、排序、删除;仪表盘同步展示 |
 | 服务 | launchd(LaunchAgents/LaunchDaemons 只读+用户域可操作)、`brew services` 启停 |
 | 监控项 | 自定义监控(launchd / 端口 / HTTP / 进程名),60s 自动检查,可直接重启关联服务 |
 | 计划任务 | crontab 可视化增删改/启用禁用;写回前自动备份到 `data/cron-backup/`(保留 20 份) |
